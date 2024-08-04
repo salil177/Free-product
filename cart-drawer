@@ -1,0 +1,231 @@
+Call deleteBtn in Cartupdate
+
+Main - product File 
+
+                <div class="meta-div page-width">
+     <div class="meta-div-inner">
+     <div style="display:none;" class="meta-product-div">
+ <select name="id" class="product-select">            
+  {% for variant in product.variants %}
+    {% if variant.available %}
+      <option value="{{ variant.id }}">{{ variant.title }}</option>
+    {% endif %}
+  {% endfor %}
+ </select>
+
+<input class="meta-input-checkbox" type="checkbox" id="vehicle1" name="vehicle1" value="" checked>
+     </div>
+
+     
+{% for meta in product.metafields.custom.list_of_products.value  %}
+  <div class="meta-product-div">
+  <img src= "{{ meta.featured_image | img_url: "1200x"}}"/>
+           <h2> {{ meta.title }} </h2>
+     <p>{{ meta.price | money_without_trailing_zeros }} </p>
+       {% if forloop.index  == 1 %}
+       <p style="display:none" class="line-item-property__field">
+<input required class="required" id="custom-location" type="text" name="properties[freeitem]" value="freeitem">
+</p>
+       {% endif %}
+     <select name="id" class="product-select">
+  {% for variant in meta.variants %}
+    {% if variant.available %}
+      <option value="{{ variant.id }}">
+        {% if meta.has_only_default_variant %}
+        {{ meta.title }}
+          {% else %}
+          {{ variant.title }}
+      {% endif %}</option>
+    {% endif %}
+  {% endfor %}
+</select>
+
+<input class="meta-input-checkbox" type="checkbox" id="vehicle1" name="vehicle1" value="" checked>
+  </div>          
+  {% endfor %}
+     </div>
+     <button class="product-form__submit button button--full-width button--secondary" id="newatc"><a href=""> Add To Cart </a></button>
+</div>
+
+            <style>
+
+              #newatc{
+                margin-top:40px;
+              }
+              #newatc a{
+                text-decoration:none;
+                color:inherit;
+              }
+            </style>
+
+<script>
+
+  let atcbutton = document.querySelector("#newatc");
+  let metaInput = document.querySelectorAll(".meta-input-checkbox");  
+  let products = [];
+
+
+metaInput.forEach((input) => {
+    const selectElement = input.parentNode.querySelector(".product-select");
+
+    // Set initial value based on the selected option
+    const selectedOption = selectElement.querySelector("option:checked");
+    if (selectedOption) {
+      input.value = selectedOption.value;
+    }
+
+    input.addEventListener("change", function () {
+      if (input.checked) {
+        const selectedOption = selectElement.querySelector("option:checked");
+        if (selectedOption) {
+          input.value = selectedOption.value;
+        }
+      } else {
+        input.value = "";
+      }
+    });
+
+    selectElement.addEventListener("change", function () {
+      if (input.checked) {
+        const selectedOption = selectElement.querySelector("option:checked");
+        if (selectedOption) {
+          input.value = selectedOption.value;
+        }
+      }
+    });
+  });
+
+
+
+atcbutton.addEventListener("click", () => {
+  event.preventDefault();
+
+  metaInput.forEach((input) => {
+    if (input.checked) {
+      const obj = new Object();
+      obj.id = input.value;
+      obj.quantity = 1;
+      products.push(obj);
+    }
+  });
+
+  fetch(window.Shopify.routes.root + 'cart/add.js', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      items: products
+    })
+  })
+    .then((response) => {
+      if (response.status === 200) {
+
+  
+document.querySelector('.drawer__inner-empty')?.remove();
+document.querySelector('cart-drawer').classList.remove("is-empty");
+document.querySelector('cart-drawer-items').classList.remove("is-empty");
+
+        updateCart()
+
+   
+        // Update the href of the anchor element to the cart page URL
+        const ahref = document.querySelector(".header__icon--cart");
+        ahref.click()
+
+        products = [];
+        
+      } else {
+        // Handle other response statuses if needed
+        return response.json();
+      }
+    })
+    .then((data) => {
+      console.log(data);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+
+
+});
+</script>
+
+
+
+Theme Liquid
+
+   <script>
+const updateCart = function (){
+       fetch(`/cart?section_id=cart-drawer`)
+    .then((response) => response.text())
+    .then((responseText) => {
+      const html = new DOMParser().parseFromString(responseText, 'text/html');
+      document.querySelector('cart-drawer').innerHTML = '';
+      document.querySelector('cart-drawer').innerHTML = html.documentElement.querySelector('cart-drawer').innerHTML;
+   
+    
+      if (!(document.querySelectorAll('.drawer__cart-items-wrapper').length)) {
+        document.querySelector('cart-drawer').classList.add('is-empty');
+      }
+      document.querySelector('#CartDrawer-Checkout').style.opacity = 'unset';
+      document.querySelector('#CartDrawer-Checkout').style.pointerEvents = 'unset';
+     
+    });
+}
+
+     
+const removeParent = async (title) => {
+  try {
+    const response = await fetch('/cart.js');
+    const data = await response.json();
+
+    let stickyChild = null;
+
+    for (let item of data.items) {
+      if (item.title.toUpperCase() === "RADIO") {
+        stickyChild = item.id;
+        break; 
+      }
+    }
+
+  
+    for (let item of data.items) {
+      if (item.title.toUpperCase() === "CROSS JACKET - M" && item.title.toUpperCase() === title) {
+     
+
+        const stickformData = {
+          'id': `${stickyChild}`,
+          'quantity': 0,
+        };
+
+        await fetch(window.Shopify.routes.root + 'cart/change.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(stickformData)
+        });
+
+        updateCart();
+
+        break;
+      }
+    }
+  } catch (e) {
+    console.log('error', e);
+  }
+};
+
+    
+
+     const deleteBtn = function(a){
+    const removeParentbtns = a.firstElementChild;
+     const id = removeParentbtns.getAttribute("aria-label").replace("Remove" , '').trim().toUpperCase();
+       removeParent(id)
+      }
+       
+
+  
+  
+</script>
